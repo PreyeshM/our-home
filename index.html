@@ -115,7 +115,7 @@ function chips(sel,attr,opts){return`<div class="chips">${opts.map(o=>`<button c
 function render(){
  const now=today(),ts=S.tasks;let h='',main=false;
  if(S.loading){h='<h1>Our Home</h1><p class="sub">Loading…</p>'}
- else if(!S.session){h=`<h1>Our Home</h1><p class="sub">Sign in with your family email to see the shared tasks.</p><div class="card" style="padding:16px"><label style="margin-top:0">Email</label><input id="em" type="email" inputmode="email" autocapitalize="off" autocomplete="email" placeholder="you@example.com"><button class="btn" id="send">Email me a sign-in link</button><p class="note" id="msg" style="margin:10px 2px 0"></p></div>`}
+ else if(!S.session){h=`<h1>Our Home</h1><p class="sub">Sign in with your family email to see the shared tasks.</p><div class="card" style="padding:16px"><label style="margin-top:0">Email</label><input id="em" type="email" inputmode="email" autocapitalize="off" autocomplete="email" placeholder="you@example.com"><label>Password</label><input id="pw" type="password" autocomplete="current-password" placeholder="Password"><button class="btn" id="send">Sign in</button><button class="btn alt" id="link">Email me a sign-in link instead</button><p class="note" id="msg" style="margin:10px 2px 0"></p></div>`}
  else if(S.denied){h=`<h1>Our Home</h1><div class="card empty"><big>🔒</big><b>This email isn't on the family list</b><p>Signed in as ${esc(S.session.user.email||'')}. Ask the person who set this up to add it.</p></div><button class="btn alt" id="signout">Sign out</button>`}
  else{main=true;
  const open=ts.filter(t=>statusOf(t,now)==='open').length,od=ts.filter(t=>statusOf(t,now)==='overdue').length,dn=ts.filter(t=>t.done).length;
@@ -158,6 +158,9 @@ function saveSheet(){const f={title:$('#f-title').value.trim(),desc:$('#f-desc')
  const id=UI.edit.id;closeSheet();
  run(id?SB.from('tasks').update(toRow(f)).eq('id',id):SB.from('tasks').insert(toRow(f)))}
 function toggle(id){const t=S.tasks.find(x=>x.id===id);if(!t)return;t.done=!t.done;render();run(SB.from('tasks').update({done:t.done}).eq('id',id))}
+async function signIn(){const em=$('#em').value.trim().toLowerCase(),pw=$('#pw').value;if(!em||!pw){say('Enter your email and password.');return}
+ $('#send').disabled=true;say('Signing in…');const r=await SB.auth.signInWithPassword({email:em,password:pw});
+ const b=$('#send');if(b)b.disabled=false;say(r.error?r.error.message:'')}
 async function sendLink(){const em=$('#em').value.trim().toLowerCase();if(!em){say('Enter your email first.');return}
  $('#send').disabled=true;say('Sending…');
  const r=await SB.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.origin+location.pathname}});
@@ -177,9 +180,11 @@ document.addEventListener('click',e=>{
  if(e.target.id==='f-x'||e.target.id==='sheetbg')return closeSheet();
  if(e.target.id==='f-done'){const id=UI.edit.id;closeSheet();return toggle(id)}
  if(e.target.id==='f-del'){const id=UI.edit.id;closeSheet();return run(SB.from('tasks').delete().eq('id',id))}
- if(e.target.id==='send')return sendLink();
+ if(e.target.id==='send')return signIn();
+ if(e.target.id==='link')return sendLink();
  if(e.target.id==='signout')return SB.auth.signOut();
 });
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='pw')signIn()});
 document.addEventListener('change',e=>{if(e.target.id==='fdue'){UI.f.due=e.target.value;render()}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.session&&!S.denied)fetchTasks()});
 render();
